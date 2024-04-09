@@ -1,0 +1,31 @@
+https://docs.google.com/document/d/1NmzBFkx_kgwdCmjlk39DKK47ZbstbQ0FEHGSFKDQ91Y/edit
+
+PHP:
+
+В коде нарушаются архитектурные принципы ООП и SOLID. Задача тривиальная, решается буквально на каждом проекте. Я бы предложил использовать сервисный слой и продумать некоторые абстракции:
+абстрактный класс PaymentAbstract() (в него пока добавить нечего, но потом может будет какой-то функционал общий для всех дочерних классов) и интерфейс PaymentInterface() с методом pay(): bool
+класс из задания назовем BalancePayment(), наследует PaymentAbstract() и имплементирует интерфейс выше
+сервисный класс PaymentService() с методом paymentProcess(). В этом классе будет приватное поле $source типа PaymentAbstract(). Оно будет заполняться конструктором, будем добавлять в него объект класса-наследника от PaymentAbstract(). Сам метод paymentProcess() вызывает $source->pay() и выполняет задачи после платежа afterPayment() (отправка уведомлений, логирование и прочее)
+метод pay() класса BalancePayment:
+добавить возвращаемое значение bool
+добавить try-catch на весь метод. Добавить обработку отсутствующих данных и моделей (userId, orderId). В случае отсутствия данных выбрасывать исключение с детализацией что случилось. В catch() пишем лог и return false. После try-catch блока return true.
+Метод будет выглядеть так:
+1. получаем данные, проверяем
+2.  if ($sum <= $userBalance && $sum === $order->sum). Внутри уменьшаем баланс, переводим статус, сохраняем данные. Иначе выбрасываем исключение с детализацией
+можно использовать транзакцию, т.к. платеж должен быть неразрывным. 
+
+MySQL:
+
+INSERT INTO `article_views` (`article_id`,`user_id`,`date`, `count_views`) VALUES (id статьи, id пользователя, дата, 1)
+ON DUPLICATE KEY UPDATE `count_views`=`count_views`+1;
+
+SELECT `date`, `user_id`, sum(`count_views`) AS `views`
+FROM `article_views`
+WHERE `date` > ‘дата год назад’
+GROUP BY `date`, `user_id`
+
+Индексы здесь добавить можно, если выборки делаются часто. Нужно понимать, что при update, insert или delete происходит переиндексация. Я бы добавил два индекса через миграцию в yii2:
+
+$this->createIndex('idx-date', 'article_views', `date`);
+$this->createIndex('idx-user_id', 'article_views', `user_id`);
+
